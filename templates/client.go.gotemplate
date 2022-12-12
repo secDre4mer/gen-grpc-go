@@ -1,0 +1,63 @@
+package {{.PackageName}}
+
+import (
+    "context"
+
+    "google.golang.org/grpc"
+
+    original "{{.Package}}"
+
+{{- range $path, $alias := .RequiredPackages }}
+    {{$alias}} "{{$path}}"
+{{- end}}
+)
+{{- $name := .Name }}
+
+func Make{{$name}}Client(client grpc.ClientConnInterface) original.{{$name}} {
+    return &{{$name}}ClientWrapper{New{{$name}}Client(client)}
+}
+
+type {{$name}}ClientWrapper struct {
+    Internal {{$name}}Client
+}
+
+{{ range .Methods}}
+func (w *{{$name}}ClientWrapper) {{.Name}}(
+{{- if .UsesContext}}
+    ctx context.Context,
+{{- end}}
+{{- range $i, $arg := .Args}}
+    param{{$i}} {{.GoName}},
+{{- end}}
+) (
+{{- range $i, $arg := .Results}}
+    result{{$i}} {{.GoName}},
+{{- end}}
+{{- if .UsesError}}
+    err error,
+{{- end}}
+) {
+    request := &{{.Name}}Request{
+{{- range $i, $arg := .Args}}
+        Param{{$i}}: {{template "transformToGrpcType" $arg}}(param{{$i}}),
+{{- end}}
+    }
+{{- if (not .UsesContext) }}
+    ctx := context.Background()
+{{- end}}
+    response, err := w.Internal.{{.Name}}(ctx, request)
+    if err != nil {
+{{- if .UsesError}}
+        return
+{{- else}}
+        panic(err)
+{{- end}}
+    }
+{{- range $i, $arg := .Results}}
+    result{{$i}} = {{template "transformToInterfaceType" $arg}}(response.Result{{$i}})
+{{- else}}
+    _ = response
+{{- end}}
+    return
+}
+{{end}}

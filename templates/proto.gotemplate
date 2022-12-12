@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package {{.PackageName}};
+option go_package = "{{.PackagePath}}";
+
+service {{.Name}} {
+{{- range .Methods }}
+  rpc {{.Name}}({{.Param}}) returns ({{.Result}}) {}
+{{- end }}
+}
+
+{{- range .Types }}
+message {{.Name}} {
+{{- range $i, $field := .Fields }}
+  {{.Type}} {{.Name}} = {{increment $i}};
+{{- end }}
+}
+{{- end }}

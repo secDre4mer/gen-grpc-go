@@ -1,0 +1,87 @@
+package {{.PackageName}}
+
+import (
+{{- range $path, $alias := .RequiredPackages }}
+    {{$alias}} "{{$path}}"
+{{- end}}
+)
+
+{{- define "transformToInterfaceType"}}
+    {{- if (eq .Kind "primitive") -}}
+        {{- if (ne .GoName .GrpcName) -}}
+            ({{.GoName}})
+        {{- end}}
+    {{- else -}}
+        toInterfaceType_{{.BaseName}}
+    {{- end}}
+{{- end}}
+
+{{- define "transformToGrpcType"}}
+    {{- if (eq .Kind "primitive") -}}
+        ({{.GrpcName}})
+    {{- else -}}
+        toGrpcType_{{.BaseName}}
+    {{- end}}
+{{- end}}
+
+{{- range .RequiredTypes }}
+func toGrpcType_{{.BaseName}}(param {{.GoName}}) {{.GrpcName}} {
+{{- if (eq .GrpcName .GoName) }}
+    return param
+{{- else if (eq .Kind "struct") }}
+    var result = new({{dereference .GrpcName}})
+{{- range .Fields}}
+    result.{{.Name}} = {{template "transformToGrpcType" .Type}}(param.{{.Name}})
+{{- end}}
+    return result
+{{- else if (eq .Kind "array")}}
+    var result = make({{.GrpcName}}, len(param))
+{{- if (eq .Elem.GrpcName .Elem.GoName) }}
+    copy(result, param[:])
+{{- else}}
+    for i := range result {
+        result[i] = {{template "transformToGrpcType" .Elem}}(param[i])
+    }
+{{- end}}
+    return result
+{{- else if (eq .Kind "slice")}}
+    var result = make({{.GrpcName}}, len(param))
+{{- if (eq .Elem.GrpcName .Elem.GoName) }}
+    copy(result, param)
+{{- else}}
+    for i := range result {
+        result[i] = {{template "transformToGrpcType" .Elem}}(param[i])
+    }
+{{- end}}
+    return result
+{{- end}}
+}
+
+func toInterfaceType_{{.BaseName}}(param {{.GrpcName}}) (result {{.GoName}}) {
+{{- if (eq .GrpcName .GoName) }}
+    return param
+{{- else if (eq .Kind "struct")}}
+{{- range .Fields}}
+    result.{{.Name}} = {{template "transformToInterfaceType" .Type}}(param.{{.Name}})
+{{- end}}
+{{- else if (eq .Kind "array")}}
+{{- if (eq .Elem.GrpcName .Elem.GoName) }}
+    copy(result[:], param)
+{{- else}}
+    for i := range result {
+       result[i] = {{template "transformToInterfaceType" .Elem}}(param[i])
+    }
+{{- end}}
+{{- else if (eq .Kind "slice")}}
+    result = make({{.GoName}}, len(param))
+{{- if (eq .Elem.GrpcName .Elem.GoName) }}
+    copy(result, param)
+{{- else}}
+    for i := range result {
+        result[i] = {{template "transformToInterfaceType" .Elem}}(param[i])
+    }
+{{- end}}
+{{- end}}
+    return
+}
+{{- end}}

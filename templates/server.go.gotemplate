@@ -1,0 +1,48 @@
+package {{.PackageName}}
+
+import (
+    "context"
+
+    "google.golang.org/grpc"
+
+    original "{{.Package}}"
+)
+
+{{- $name := .Name }}
+
+func Register{{$name}}(server *grpc.Server, internal original.{{$name}}) {
+    Register{{$name}}Server(server, &{{$name}}ServerWrapper{Internal: internal})
+}
+
+type {{.Name}}ServerWrapper struct {
+    Internal original.{{.Name}}
+}
+
+{{ range .Methods}}
+func (w *{{$name}}ServerWrapper) {{.Name}}(ctx context.Context, request *{{.Name}}Request) (*{{.Name}}Response, error) {
+{{- if .UsesError}}
+    {{ range $i, $arg := .Results}}result{{$i}}, {{end}}err
+{{- else}}
+    {{- $results := .Results}}
+    {{ range $i, $arg := .Results}}{{if (gt $i 0)}}, {{- end -}}result{{$i}}{{- end -}}
+{{- end}} := w.Internal.{{.Name}}(
+{{- if .UsesContext}}
+        ctx,
+{{- end}}
+{{- range $i, $arg := .Args}}
+        {{template "transformToInterfaceType" $arg}}(request.Param{{$i}}),
+{{- end}}
+    )
+{{- if .UsesError}}
+    if err != nil {
+        return nil, err
+    }
+{{- end}}
+    response := &{{.Name}}Response{
+{{- range $i, $arg := .Results}}
+        Result{{$i}}: {{template "transformToGrpcType" $arg}}(result{{$i}}),
+{{- end}}
+    }
+    return response, nil
+}
+{{end}}
