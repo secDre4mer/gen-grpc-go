@@ -1,6 +1,9 @@
 package ifdecl
 
-import "context"
+import (
+	"context"
+	"errors"
+)
 
 type ArrayType [32]byte
 
@@ -19,9 +22,23 @@ type TestInterface interface {
 	H(SliceType) SliceType
 	I(StructSlice) StructSlice
 	J([]TestStruct) []TestStruct
+	K(marshalable BinaryMarshalable) BinaryMarshalable
 }
 
 type TestStruct struct {
 	A int
 	B string
+}
+
+type BinaryMarshalable byte
+
+func (b BinaryMarshalable) MarshalBinary() (data []byte, err error) {
+	return []byte{byte(b)}, nil
+}
+func (b *BinaryMarshalable) UnmarshalBinary(data []byte) error {
+	if len(data) != 1 {
+		return errors.New("bad data length")
+	}
+	*b = BinaryMarshalable(data[0])
+	return nil
 }

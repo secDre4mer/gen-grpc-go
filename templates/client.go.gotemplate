@@ -7,8 +7,10 @@ import (
 
     original "{{.Package}}"
 
-{{- range $path, $alias := .RequiredPackages }}
-    {{$alias}} "{{$path}}"
+{{- range $package := .RequiredPackages }}
+{{- if $package.InterfaceDependency }}
+    {{$package.Alias}} "{{$package.Path}}"
+{{- end}}
 {{- end}}
 )
 {{- $name := .Name }}
@@ -37,9 +39,20 @@ func (w *{{$name}}ClientWrapper) {{.Name}}(
     err error,
 {{- end}}
 ) {
+{{- $usesError := .UsesError }}
+{{- range $i, $arg := .Args}}
+    convertedParam{{$i}}, err := {{template "transformToGrpcType" $arg}}(param{{$i}})
+    if err != nil {
+{{- if $usesError }}
+        return
+{{- else}}
+        panic(err)
+{{- end}}
+    }
+{{- end}}
     request := &{{.Name}}Request{
 {{- range $i, $arg := .Args}}
-        Param{{$i}}: {{template "transformToGrpcType" $arg}}(param{{$i}}),
+        Param{{$i}}: convertedParam{{$i}},
 {{- end}}
     }
 {{- if (not .UsesContext) }}
@@ -54,7 +67,14 @@ func (w *{{$name}}ClientWrapper) {{.Name}}(
 {{- end}}
     }
 {{- range $i, $arg := .Results}}
-    result{{$i}} = {{template "transformToInterfaceType" $arg}}(response.Result{{$i}})
+    result{{$i}}, err = {{template "transformToInterfaceType" $arg}}(response.Result{{$i}})
+    if err != nil {
+{{- if $usesError }}
+        return
+{{- else}}
+        panic(err)
+{{- end}}
+    }
 {{- else}}
     _ = response
 {{- end}}

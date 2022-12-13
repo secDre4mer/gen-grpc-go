@@ -1,75 +1,86 @@
 package {{.PackageName}}
 
 import (
-{{- range $path, $alias := .RequiredPackages }}
-    {{$alias}} "{{$path}}"
+{{- range $package := .RequiredPackages }}
+    {{$package.Alias}} "{{$package.Path}}"
 {{- end}}
 )
 
-{{- define "transformToInterfaceType"}}
-    {{- if (eq .Kind "primitive") -}}
-        {{- if (ne .GoName .GrpcName) -}}
-            ({{.GoName}})
-        {{- end}}
-    {{- else -}}
-        toInterfaceType_{{.BaseName}}
-    {{- end}}
+{{- define "transformToInterfaceType" -}}
+    toInterfaceType_{{.BaseName}}
 {{- end}}
 
-{{- define "transformToGrpcType"}}
-    {{- if (eq .Kind "primitive") -}}
-        ({{.GrpcName}})
-    {{- else -}}
-        toGrpcType_{{.BaseName}}
-    {{- end}}
+{{- define "transformToGrpcType" -}}
+    toGrpcType_{{.BaseName}}
 {{- end}}
 
 {{- range .RequiredTypes }}
-func toGrpcType_{{.BaseName}}(param {{.GoName}}) {{.GrpcName}} {
+func toGrpcType_{{.BaseName}}(param {{.GoName}}) (result {{.GrpcName}}, err error) {
 {{- if (eq .GrpcName .GoName) }}
-    return param
+    return param, nil
+{{- else if (eq .Kind "primitive") -}}
+    return ({{.GrpcName}})(param), nil
 {{- else if (eq .Kind "struct") }}
-    var result = new({{dereference .GrpcName}})
+    result = new({{dereference .GrpcName}})
 {{- range .Fields}}
-    result.{{.Name}} = {{template "transformToGrpcType" .Type}}(param.{{.Name}})
+    result.{{.Name}}, err = {{template "transformToGrpcType" .Type}}(param.{{.Name}})
+    if err != nil {
+        return
+    }
 {{- end}}
-    return result
+    return result, nil
 {{- else if (eq .Kind "array")}}
-    var result = make({{.GrpcName}}, len(param))
+    result = make({{.GrpcName}}, len(param))
 {{- if (eq .Elem.GrpcName .Elem.GoName) }}
     copy(result, param[:])
 {{- else}}
     for i := range result {
-        result[i] = {{template "transformToGrpcType" .Elem}}(param[i])
+        result[i], err = {{template "transformToGrpcType" .Elem}}(param[i])
+        if err != nil {
+            return
+        }
     }
 {{- end}}
-    return result
+    return result, nil
 {{- else if (eq .Kind "slice")}}
-    var result = make({{.GrpcName}}, len(param))
+    result = make({{.GrpcName}}, len(param))
 {{- if (eq .Elem.GrpcName .Elem.GoName) }}
     copy(result, param)
 {{- else}}
     for i := range result {
-        result[i] = {{template "transformToGrpcType" .Elem}}(param[i])
+        result[i], err = {{template "transformToGrpcType" .Elem}}(param[i])
+        if err != nil {
+            return
+        }
     }
 {{- end}}
-    return result
+    return result, nil
+{{- else if (eq .Kind "BinaryMarshaler")}}
+    return param.MarshalBinary()
 {{- end}}
 }
 
-func toInterfaceType_{{.BaseName}}(param {{.GrpcName}}) (result {{.GoName}}) {
+func toInterfaceType_{{.BaseName}}(param {{.GrpcName}}) (result {{.GoName}}, err error) {
 {{- if (eq .GrpcName .GoName) }}
-    return param
+    result = param
+{{- else if (eq .Kind "primitive") -}}
+    result = ({{.GoName}})(param)
 {{- else if (eq .Kind "struct")}}
 {{- range .Fields}}
-    result.{{.Name}} = {{template "transformToInterfaceType" .Type}}(param.{{.Name}})
+    result.{{.Name}}, err = {{template "transformToInterfaceType" .Type}}(param.{{.Name}})
+    if err != nil {
+        return
+    }
 {{- end}}
 {{- else if (eq .Kind "array")}}
 {{- if (eq .Elem.GrpcName .Elem.GoName) }}
     copy(result[:], param)
 {{- else}}
     for i := range result {
-       result[i] = {{template "transformToInterfaceType" .Elem}}(param[i])
+       result[i], err = {{template "transformToInterfaceType" .Elem}}(param[i])
+        if err != nil {
+            return
+        }
     }
 {{- end}}
 {{- else if (eq .Kind "slice")}}
@@ -78,9 +89,15 @@ func toInterfaceType_{{.BaseName}}(param {{.GrpcName}}) (result {{.GoName}}) {
     copy(result, param)
 {{- else}}
     for i := range result {
-        result[i] = {{template "transformToInterfaceType" .Elem}}(param[i])
+        result[i], err = {{template "transformToInterfaceType" .Elem}}(param[i])
+        if err != nil {
+            return
+        }
     }
 {{- end}}
+{{- else if (eq .Kind "BinaryMarshaler")}}
+    err = result.UnmarshalBinary(param)
+    return result, err
 {{- end}}
     return
 }

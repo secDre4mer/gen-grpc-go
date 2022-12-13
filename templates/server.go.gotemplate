@@ -20,6 +20,17 @@ type {{.Name}}ServerWrapper struct {
 
 {{ range .Methods}}
 func (w *{{$name}}ServerWrapper) {{.Name}}(ctx context.Context, request *{{.Name}}Request) (*{{.Name}}Response, error) {
+{{- $usesError := .UsesError }}
+{{- range $i, $arg := .Args}}
+    convertedParam{{$i}}, err{{$i}} := {{template "transformToInterfaceType" $arg}}(request.Param{{$i}})
+    if err{{$i}} != nil {
+{{- if $usesError }}
+        return nil, err{{$i}}
+{{- else}}
+        panic(err{{$i}})
+{{- end}}
+    }
+{{- end}}
 {{- if .UsesError}}
     {{ range $i, $arg := .Results}}result{{$i}}, {{end}}err
 {{- else}}
@@ -30,7 +41,7 @@ func (w *{{$name}}ServerWrapper) {{.Name}}(ctx context.Context, request *{{.Name
         ctx,
 {{- end}}
 {{- range $i, $arg := .Args}}
-        {{template "transformToInterfaceType" $arg}}(request.Param{{$i}}),
+        convertedParam{{$i}},
 {{- end}}
     )
 {{- if .UsesError}}
@@ -38,9 +49,19 @@ func (w *{{$name}}ServerWrapper) {{.Name}}(ctx context.Context, request *{{.Name
         return nil, err
     }
 {{- end}}
+{{- range $i, $result := .Results}}
+    convertedResult{{$i}}, err := {{template "transformToGrpcType" $result}}(result{{$i}})
+    if err != nil {
+{{- if $usesError }}
+        return nil, err
+{{- else}}
+        panic(err)
+{{- end}}
+    }
+{{- end}}
     response := &{{.Name}}Response{
 {{- range $i, $arg := .Results}}
-        Result{{$i}}: {{template "transformToGrpcType" $arg}}(result{{$i}}),
+        Result{{$i}}: convertedResult{{$i}},
 {{- end}}
     }
     return response, nil
