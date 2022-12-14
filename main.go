@@ -221,9 +221,6 @@ var binaryMarshalType = reflect.TypeOf((*encoding.BinaryMarshaler)(nil)).Elem()
 var binaryUnmarshalType = reflect.TypeOf((*encoding.BinaryUnmarshaler)(nil)).Elem()
 
 func parseType(t reflect.Type, indirectDependency bool) (goType, error) {
-	if parsedStruct, alreadyParsed := goTypeMap[t]; alreadyParsed {
-		return parsedStruct, nil
-	}
 	var goTyp goType
 	goTyp.BaseName = t.Name()
 	pkg := t.PkgPath()
@@ -231,6 +228,10 @@ func parseType(t reflect.Type, indirectDependency bool) (goType, error) {
 		goTyp.GoName = findImportAlias(pkg, !indirectDependency) + "." + goTyp.BaseName
 	} else {
 		goTyp.GoName = goTyp.BaseName
+	}
+
+	if parsedStruct, alreadyParsed := goTypeMap[t]; alreadyParsed {
+		return parsedStruct, nil
 	}
 	if t.Implements(binaryMarshalType) && reflect.PointerTo(t).Implements(binaryUnmarshalType) {
 		goTyp.GrpcName = "[]byte"
