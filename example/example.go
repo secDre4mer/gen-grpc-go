@@ -44,6 +44,7 @@ func main() {
 		{42, "test"},
 		{1, "test2"},
 	}))
+	fmt.Println(client.K(1))
 }
 
 type TestInterfaceImpl struct {
@@ -84,4 +85,8 @@ func (t TestInterfaceImpl) I(s ifdecl.StructSlice) ifdecl.StructSlice {
 }
 func (t TestInterfaceImpl) J(s []ifdecl.TestStruct) []ifdecl.TestStruct {
 	return s
+}
+
+func (t TestInterfaceImpl) K(marshalable ifdecl.BinaryMarshalable) ifdecl.BinaryMarshalable {
+	return marshalable
 }
