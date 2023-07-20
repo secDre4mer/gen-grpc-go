@@ -97,7 +97,6 @@ func toInterfaceType_{{.BaseName}}(param {{.GrpcName}}) (result {{.GoName}}, err
 {{- end}}
 {{- else if (eq .Kind "BinaryMarshaler")}}
     err = result.UnmarshalBinary(param)
-    return result, err
 {{- end}}
     return
 }
