@@ -110,7 +110,7 @@ func GenerateGRPCForInterface(grpcInterface any, targetPath string) {
 	}
 	protoFile.Close()
 
-	protoCmd := exec.Command("protoc", "--go_out=plugins=grpc:.", protoPath)
+	protoCmd := exec.Command("protoc", "--go_out=.", "--go-grpc_out=.", protoPath)
 	protoCmd.Stderr = os.Stderr
 	if err := protoCmd.Run(); err != nil {
 		panic(err)

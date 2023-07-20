@@ -16,6 +16,7 @@ func Register{{$name}}(server *grpc.Server, internal original.{{$name}}) {
 
 type {{.Name}}ServerWrapper struct {
     Internal original.{{.Name}}
+    Unimplemented{{.Name}}Server
 }
 
 {{ range .Methods}}
