@@ -250,6 +250,10 @@ func parseType(t reflect.Type, indirectDependency bool) (goType, error) {
 		goTyp.GrpcName = "int64"
 		goTyp.GrpcProtoName = "int64"
 		goTyp.Kind = kindPrimitive
+	case reflect.Float64, reflect.Float32:
+		goTyp.GrpcName = "float64"
+		goTyp.GrpcProtoName = "double"
+		goTyp.Kind = kindPrimitive
 	case reflect.Bool:
 		goTyp.GrpcName = "bool"
 		goTyp.GrpcProtoName = "bool"

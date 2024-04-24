@@ -23,6 +23,7 @@ type TestInterface interface {
 	I(StructSlice) StructSlice
 	J([]TestStruct) []TestStruct
 	K(marshalable BinaryMarshalable) BinaryMarshalable
+	L(float642 float64) float64
 }
 
 type TestStruct struct {
