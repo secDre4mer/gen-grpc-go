@@ -2,6 +2,7 @@ package {{.PackageName}}
 
 import (
     "context"
+    "runtime/trace"
 
     "google.golang.org/grpc"
 
@@ -58,7 +59,9 @@ func (w *{{$name}}ClientWrapper) {{.Name}}(
 {{- if (not .UsesContext) }}
     ctx := context.Background()
 {{- end}}
+    region := trace.StartRegion(ctx, "{{.Name}}")
     response, err := w.Internal.{{.Name}}(ctx, request)
+    region.End()
     if err != nil {
 {{- if .UsesError}}
         return
